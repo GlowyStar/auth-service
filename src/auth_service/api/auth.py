@@ -8,6 +8,7 @@ from auth_service.schemas import (
     ConfirmEmailRequest,
     EmailRequest,
     LoginRequest,
+    RefreshRequest,
     SignUpRequest,
     TokenResponse,
     UserResponse,
@@ -45,4 +46,10 @@ async def login_with_form(
     service: Service,
 ) -> TokenResponse:
     tokens = await service.login(form.username.lower(), form.password, client_ip)
+    return TokenResponse.model_validate(tokens)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_tokens(body: RefreshRequest, service: Service) -> TokenResponse:
+    tokens = await service.refresh(body.refresh_token)
     return TokenResponse.model_validate(tokens)

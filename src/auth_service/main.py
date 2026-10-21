@@ -19,6 +19,7 @@ ERROR_STATUS_CODES: dict[type[errors.DomainError], int] = {
     errors.EmailNotConfirmed: status.HTTP_403_FORBIDDEN,
     errors.TooManyLoginAttempts: status.HTTP_429_TOO_MANY_REQUESTS,
     errors.InvalidToken: status.HTTP_401_UNAUTHORIZED,
+    errors.RefreshTokenReused: status.HTTP_401_UNAUTHORIZED,
 }
 
 

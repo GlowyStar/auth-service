@@ -28,6 +28,10 @@ class LoginRequest(BaseModel):
     password: Annotated[str, Field(max_length=128)]
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class TokenResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

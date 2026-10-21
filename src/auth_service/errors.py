@@ -31,3 +31,7 @@ class TooManyLoginAttempts(DomainError):
 
 class InvalidToken(DomainError):
     detail = "token is invalid or expired"
+
+
+class RefreshTokenReused(DomainError):
+    detail = "refresh token was already used, the session is revoked"

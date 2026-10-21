@@ -13,6 +13,7 @@ from auth_service.errors import (
     InvalidCode,
     InvalidCredentials,
     InvalidToken,
+    RefreshTokenReused,
 )
 from auth_service.mailer import EmailSender
 from auth_service.models import RefreshToken, User
@@ -102,6 +103,27 @@ class AuthService:
 
         await self._login_attempts.clear(email)
         return await self._issue_tokens(user.id, family_id=uuid4())
+
+    async def refresh(self, refresh_token: str) -> TokenPair:
+        now = datetime.now(UTC)
+        token_hash = hash_refresh_token(refresh_token)
+        token = await self._refresh_tokens.get_by_hash_for_update(token_hash)
+        if token is None:
+            raise InvalidToken
+
+        token_is_revoked = token.revoked_at is not None
+        token_is_expired = token.expires_at <= now
+        if token_is_revoked or token_is_expired:
+            raise InvalidToken
+
+        # A rotated token coming back means it leaked: end the whole login session.
+        if token.used_at is not None:
+            await self._refresh_tokens.revoke_family(token.family_id, now)
+            await self._session.commit()
+            raise RefreshTokenReused
+
+        token.used_at = now
+        return await self._issue_tokens(token.user_id, token.family_id)
 
     async def authenticate(self, access_token: str) -> AccessClaims:
         return decode_access_token(access_token, self._secret)
