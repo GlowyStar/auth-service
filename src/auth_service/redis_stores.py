@@ -5,11 +5,15 @@ from enum import StrEnum
 
 from redis.asyncio import Redis
 
-from auth_service.errors import CodeResendTooSoon, InvalidCode
+from auth_service.errors import CodeResendTooSoon, InvalidCode, TooManyLoginAttempts
 
 CODE_TTL_SECONDS = 5 * 60
 CODE_MAX_ATTEMPTS = 5
 CODE_RESEND_COOLDOWN_SECONDS = 60
+
+LOGIN_FAILURE_WINDOW_SECONDS = 15 * 60
+LOGIN_MAX_FAILURES_PER_EMAIL = 5
+LOGIN_MAX_FAILURES_PER_IP = 20
 
 
 class CodePurpose(StrEnum):
@@ -63,3 +67,35 @@ class OneTimeCodes:
 
     def _digest(self, key: str, code: str) -> str:
         return hmac.new(self._secret, f"{key}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+class LoginAttempts:
+    def __init__(self, redis: Redis) -> None:
+        self._redis = redis
+
+    async def ensure_allowed(self, email: str, ip: str) -> None:
+        email_failures, ip_failures = await self._redis.mget(
+            _email_failures_key(email), _ip_failures_key(ip)
+        )
+        email_is_locked = int(email_failures or 0) >= LOGIN_MAX_FAILURES_PER_EMAIL
+        ip_is_locked = int(ip_failures or 0) >= LOGIN_MAX_FAILURES_PER_IP
+        if email_is_locked or ip_is_locked:
+            raise TooManyLoginAttempts
+
+    async def record_failure(self, email: str, ip: str) -> None:
+        async with self._redis.pipeline(transaction=True) as pipe:
+            for key in (_email_failures_key(email), _ip_failures_key(ip)):
+                pipe.incr(key)
+                pipe.expire(key, LOGIN_FAILURE_WINDOW_SECONDS, nx=True)
+            await pipe.execute()
+
+    async def clear(self, email: str) -> None:
+        await self._redis.delete(_email_failures_key(email))
+
+
+def _email_failures_key(email: str) -> str:
+    return f"login-failures:email:{email}"
+
+
+def _ip_failures_key(ip: str) -> str:
+    return f"login-failures:ip:{ip}"

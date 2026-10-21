@@ -15,3 +15,19 @@ class InvalidCode(DomainError):
 
 class CodeResendTooSoon(DomainError):
     detail = "a code was sent recently, try again in a minute"
+
+
+class InvalidCredentials(DomainError):
+    detail = "email or password is wrong"
+
+
+class EmailNotConfirmed(DomainError):
+    detail = "email is not confirmed yet"
+
+
+class TooManyLoginAttempts(DomainError):
+    detail = "too many failed logins, try again later"
+
+
+class InvalidToken(DomainError):
+    detail = "token is invalid or expired"

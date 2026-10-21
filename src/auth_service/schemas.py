@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
@@ -21,6 +21,24 @@ class EmailRequest(BaseModel):
 class ConfirmEmailRequest(BaseModel):
     email: Email
     code: Code
+
+
+class LoginRequest(BaseModel):
+    email: Email
+    password: Annotated[str, Field(max_length=128)]
+
+
+class TokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    access_token: str
+    refresh_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int
+
+
+class ProfileUpdate(BaseModel):
+    full_name: Annotated[str, Field(min_length=1, max_length=200)] | None
 
 
 class UserResponse(BaseModel):
