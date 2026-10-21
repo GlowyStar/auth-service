@@ -39,9 +39,10 @@ async def get_access_claims(
     return await service.authenticate(token)
 
 
-async def get_current_user(
-    service: Service, claims: Annotated[AccessClaims, Depends(get_access_claims)]
-) -> User:
+AccessToken = Annotated[AccessClaims, Depends(get_access_claims)]
+
+
+async def get_current_user(service: Service, claims: AccessToken) -> User:
     return await service.get_user(claims.user_id)
 
 

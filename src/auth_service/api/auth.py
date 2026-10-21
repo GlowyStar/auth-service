@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from auth_service.api.dependencies import ClientIp, Service
+from auth_service.api.dependencies import AccessToken, ClientIp, Service
 from auth_service.schemas import (
     ConfirmEmailRequest,
     EmailRequest,
@@ -53,3 +53,8 @@ async def login_with_form(
 async def refresh_tokens(body: RefreshRequest, service: Service) -> TokenResponse:
     tokens = await service.refresh(body.refresh_token)
     return TokenResponse.model_validate(tokens)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(claims: AccessToken, service: Service) -> None:
+    await service.logout(claims)

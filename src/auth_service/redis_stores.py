@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import secrets
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from redis.asyncio import Redis
@@ -91,6 +92,18 @@ class LoginAttempts:
 
     async def clear(self, email: str) -> None:
         await self._redis.delete(_email_failures_key(email))
+
+
+class RevokedAccessTokens:
+    def __init__(self, redis: Redis) -> None:
+        self._redis = redis
+
+    async def add(self, jti: str, expires_at: datetime) -> None:
+        seconds_left = int((expires_at - datetime.now(UTC)).total_seconds())
+        await self._redis.set(f"revoked-access:{jti}", 1, ex=max(seconds_left, 1))
+
+    async def is_revoked(self, jti: str) -> bool:
+        return await self._redis.exists(f"revoked-access:{jti}") == 1
 
 
 def _email_failures_key(email: str) -> str:

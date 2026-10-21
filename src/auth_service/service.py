@@ -22,6 +22,7 @@ from auth_service.redis_stores import (
     CodePurpose,
     LoginAttempts,
     OneTimeCodes,
+    RevokedAccessTokens,
 )
 from auth_service.repositories import RefreshTokenRepository, UserRepository
 from auth_service.security import (
@@ -57,6 +58,7 @@ class AuthService:
         self._refresh_tokens = RefreshTokenRepository(session)
         self._codes = OneTimeCodes(redis, secret)
         self._login_attempts = LoginAttempts(redis)
+        self._revoked_access_tokens = RevokedAccessTokens(redis)
         self._sender = sender
         self._secret = secret
         self._access_ttl = timedelta(seconds=settings.access_token_ttl_seconds)
@@ -125,8 +127,16 @@ class AuthService:
         token.used_at = now
         return await self._issue_tokens(token.user_id, token.family_id)
 
+    async def logout(self, claims: AccessClaims) -> None:
+        await self._refresh_tokens.revoke_family(claims.session_id, datetime.now(UTC))
+        await self._session.commit()
+        await self._revoked_access_tokens.add(claims.jti, claims.expires_at)
+
     async def authenticate(self, access_token: str) -> AccessClaims:
-        return decode_access_token(access_token, self._secret)
+        claims = decode_access_token(access_token, self._secret)
+        if await self._revoked_access_tokens.is_revoked(claims.jti):
+            raise InvalidToken
+        return claims
 
     async def get_user(self, user_id: UUID) -> User:
         user = await self._users.get(user_id)
