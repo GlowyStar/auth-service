@@ -41,6 +41,12 @@ class TokenResponse(BaseModel):
     expires_in: int
 
 
+class ResetPasswordRequest(BaseModel):
+    email: Email
+    code: Code
+    new_password: Password
+
+
 class ProfileUpdate(BaseModel):
     full_name: Annotated[str, Field(min_length=1, max_length=200)] | None
 

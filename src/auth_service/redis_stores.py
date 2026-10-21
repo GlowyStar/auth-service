@@ -19,6 +19,7 @@ LOGIN_MAX_FAILURES_PER_IP = 20
 
 class CodePurpose(StrEnum):
     CONFIRM_EMAIL = "confirm-email"
+    RESET_PASSWORD = "reset-password"
 
 
 class OneTimeCodes:

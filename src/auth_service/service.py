@@ -38,6 +38,7 @@ from auth_service.settings import Settings
 
 CODE_EMAIL_SUBJECTS = {
     CodePurpose.CONFIRM_EMAIL: "Confirm your email",
+    CodePurpose.RESET_PASSWORD: "Reset your password",
 }
 
 
@@ -131,6 +132,21 @@ class AuthService:
         await self._refresh_tokens.revoke_family(claims.session_id, datetime.now(UTC))
         await self._session.commit()
         await self._revoked_access_tokens.add(claims.jti, claims.expires_at)
+
+    async def request_password_reset(self, email: str) -> None:
+        await self._codes.start_resend_cooldown(CodePurpose.RESET_PASSWORD, email)
+        if await self._users.get_by_email(email) is not None:
+            await self._send_code(CodePurpose.RESET_PASSWORD, email)
+
+    async def reset_password(self, email: str, code: str, new_password: str) -> None:
+        await self._codes.consume(CodePurpose.RESET_PASSWORD, email, code)
+        user = await self._users.get_by_email(email)
+        if user is None:
+            raise InvalidCode
+
+        user.password_hash = await hash_password(new_password)
+        await self._refresh_tokens.revoke_all_for_user(user.id, datetime.now(UTC))
+        await self._session.commit()
 
     async def authenticate(self, access_token: str) -> AccessClaims:
         claims = decode_access_token(access_token, self._secret)

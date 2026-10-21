@@ -9,6 +9,7 @@ from auth_service.schemas import (
     EmailRequest,
     LoginRequest,
     RefreshRequest,
+    ResetPasswordRequest,
     SignUpRequest,
     TokenResponse,
     UserResponse,
@@ -58,3 +59,13 @@ async def refresh_tokens(body: RefreshRequest, service: Service) -> TokenRespons
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(claims: AccessToken, service: Service) -> None:
     await service.logout(claims)
+
+
+@router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
+async def request_password_reset(body: EmailRequest, service: Service) -> None:
+    await service.request_password_reset(body.email)
+
+
+@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(body: ResetPasswordRequest, service: Service) -> None:
+    await service.reset_password(body.email, body.code, body.new_password)
